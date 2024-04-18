@@ -51,10 +51,8 @@ class Player:
         self.segments=self.segments[:-1] #Remove last segment
         self.segments.insert(0,Segment(self.segments[0].pos+direction*1)) #Insert new segment at the front
 
-
 class Orb:
     def __init__(self,pos,game):
-        self.velocity=0
         self.color=(255,0,0)
         self.game=game
         pos=game.camera.transformed_coords(pos)
@@ -71,12 +69,14 @@ class Orb:
 class Game:
     def __init__(self): 
         self.dimensions=v2(1200,800)
-        self.orb_size=40
         self.bgcolor=(104, 175, 232)
+        self.orb_size=40
+        self.number_of_orbs=5
 
         pygame.init()
 
         self.window=pygame.display.set_mode((self.dimensions.x,self.dimensions.y))
+
         self.clock=pygame.time.Clock()
         
         self.player=Player(self)
@@ -84,21 +84,31 @@ class Game:
         pygame.time.set_timer(self.PLAYER_UPDATE,self.player.speed)
 
         self.camera=Camera(self)
+        
         self.orbs=[]
-        self.init_orbs()
+        self.init_orbs(self.number_of_orbs)
 
         self.mainloop()
 
-    def init_orbs(self):
-        while len(self.orbs)<2:
+    def init_orbs(self,number_of_orbs):
+        while len(self.orbs)<number_of_orbs:
             pos=v2(random.randint(0,self.dimensions.x-self.orb_size),random.randint(0,self.dimensions.y-self.orb_size))
             self.orbs.append(Orb(pos,self))
+
+            #Check for overlapping orbs
             for index1,orb1 in enumerate(self.orbs):
                 for index2,orb2 in enumerate(self.orbs):
                     if pygame.Rect.colliderect(orb1.rect,orb2.rect) and index1!=index2:
                         self.orbs.pop(index1)
-                        
+                        self.init_orbs(1)
 
+            #Check for overlapping orbs with player
+            for orb in self.orbs:
+                for seg in self.player.segments:
+                    if pygame.Rect.colliderect(orb.rect,seg.rect):
+                        self.orbs.remove(orb)
+                        self.init_orbs(1)
+                        
     def render(self):
         for orb in self.orbs:
             orb.draw()
@@ -110,14 +120,12 @@ class Game:
 
         for seg in self.player.segments:
             seg.pos=self.camera.transformed_coords(seg.pos)
-            seg.rect.topleft=seg.pos
 
         for orb in self.orbs:
             if orb.update():
                 self.orbs.remove(orb)
                 self.player.score+=1
                 print("Score:",self.player.score)
-                # self.orbs.append(Orb(pos,self))
     
     def mainloop(self):
         while True:
