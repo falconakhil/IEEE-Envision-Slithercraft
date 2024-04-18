@@ -10,12 +10,10 @@ class Segment:
         self.height=40
         self.rect=pygame.Rect(int(pos.x),int(pos.y),self.width,self.height) #Pygame rect object
 
-    # def update(self):
-    #     print()
-
     #Draw the segment
-    def draw(self,surface):
-        pygame.draw.rect(surface,(0,0,255),self.rect)
+    def draw(self,surface,trailing):
+        # pygame.draw.rect(surface,(0,0,255),self.rect)
+        self.rect = pygame.draw.circle(surface,(0,0,255) if trailing else (0,255,255) , self.pos, 15)
 
 class Camera:
     def __init__(self,game):
@@ -28,21 +26,20 @@ class Camera:
 
     #Transforms coordinates to camera coordinates
     def transformed_coords(self,coords):
-        # return coords - self.pos + (self.game.dimensions)/2 - (self.game.player.segments[0].pos)/2
         return coords - (self.pos - (self.game.dimensions)/2)
 
 class Player:
     def __init__(self,game):
         self.score=0
-        self.speed=1
         self.game=game
+        self.speed=14 # Speed in terms of update rate. Smaller => Faster
         self.segments=[]
         for i in range(0,121):
             self.segments.append(Segment(game.dimensions/2-i*v2(1,0)))
     
     def draw(self):
-        for segment in self.segments:
-            segment.draw(self.game.window)
+        for index in range(len(self.segments)-1,-1,-1):
+            self.segments[index].draw(self.game.window,index)
 
     def update(self):
         mouse_pos=v2(pygame.mouse.get_pos()) - self.segments[0].rect.center #Get mouse position relative to player
@@ -50,9 +47,9 @@ class Player:
             direction=mouse_pos.normalize()
         else:
             direction=v2(0,0)
+
         self.segments=self.segments[:-1] #Remove last segment
-        self.segments.insert(0,Segment(self.segments[0].pos+direction*self.speed)) #Insert new segment at the front
-        
+        self.segments.insert(0,Segment(self.segments[0].pos+direction*1)) #Insert new segment at the front
 
 
 class Orb:
@@ -75,16 +72,21 @@ class Game:
     def __init__(self): 
         self.dimensions=v2(1200,800)
         self.orb_size=40
+        self.bgcolor=(104, 175, 232)
 
         pygame.init()
-        self.SCREEN_UPDATE=pygame.USEREVENT
-        pygame.time.set_timer(self.SCREEN_UPDATE,20)
+
         self.window=pygame.display.set_mode((self.dimensions.x,self.dimensions.y))
         self.clock=pygame.time.Clock()
+        
         self.player=Player(self)
+        self.PLAYER_UPDATE=pygame.USEREVENT
+        pygame.time.set_timer(self.PLAYER_UPDATE,self.player.speed)
+
         self.camera=Camera(self)
         self.orbs=[]
         self.init_orbs()
+
         self.mainloop()
 
     def init_orbs(self):
@@ -114,7 +116,7 @@ class Game:
             if orb.update():
                 self.orbs.remove(orb)
                 self.player.score+=1
-                print(self.player.score)
+                print("Score:",self.player.score)
                 # self.orbs.append(Orb(pos,self))
     
     def mainloop(self):
@@ -123,10 +125,10 @@ class Game:
                 if event.type==pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                elif event.type==self.SCREEN_UPDATE:
+                elif event.type==self.PLAYER_UPDATE:
                     self.update()
             self.clock.tick(60)
-            self.window.fill((104, 175, 232))
+            self.window.fill(self.bgcolor)
             self.render()
             pygame.display.update()
 
