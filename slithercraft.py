@@ -91,7 +91,7 @@ class Game:
         self.mainloop()
 
     def init_orbs(self,number_of_orbs):
-        while len(self.orbs)<number_of_orbs:
+        for i in range(0,number_of_orbs):
             pos=v2(random.randint(0,self.dimensions.x-self.orb_size),random.randint(0,self.dimensions.y-self.orb_size))
             self.orbs.append(Orb(pos,self))
 
@@ -124,6 +124,7 @@ class Game:
         for orb in self.orbs:
             if orb.update():
                 self.orbs.remove(orb)
+                self.init_orbs(1)
                 self.player.score+=1
                 print("Score:",self.player.score)
     
