@@ -68,19 +68,33 @@ class GameServer:
     def __init__(self):
         self.sock=Socket('localhost',8000)
         self.players={}
+        print("Listening on "+self.sock.ip+":"+str(self.sock.port))
+        print("Press Ctrl+C to stop server")
         self.mainLoop()
-    
+        
     def mainLoop(self):
         while True:
             newClient=self.sock.acceptNewClient()
             if newClient!=None:
                 self.players[newClient]=PlayerState(len(self.players))
                 self.sock.send(newClient,self.players[newClient])
+            
             for client in self.players:
                 data=self.sock.receiveData(client)
-                if data !=None :
-                    print(data.uid)
-                    self.players[client]=data
+                if data !=None:  
+                    if isinstance(data,PlayerState):
+                        self.players[client]=data
+                        # print(data.segments_x[0],data.segments_y[0],data.segments_x[1],data.segments_y[1])
+                    elif isinstance(data,str):
+                        if data=="OPPONENTS":
+                           opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client]
+                           self.sock.send(client,opponents)
+                        elif data=="END":
+                            self.players.pop(client)
+                            client.close()
+                            break
+                        
+            
                 # for others in self.players:  
                 #     if others!=client:
                 #         try:

@@ -47,31 +47,36 @@ class Socket:
         data=self.receive()
         self.sock.setblocking(False)
         return data.uid
+    
+    def close(self):
+        self.sock.setblocking(True)
+        self.send("END")
+        self.sock.close()
 
 class PlayerState:
     def __init__(self,player):
-        # self.segments=[1,2,3]
         self.segments_x=[]
         self.segments_y=[]
         for seg in player.segments:
-            self.segments_x.append(seg.rect.center[0])
-            self.segments_y.append(seg.rect.center[1])
+            self.segments_x.insert(0,seg.pos.x)
+            self.segments_y.insert(0,seg.pos.y)
+        # print(self.segments_x[0],self.segments_y[0],self.segments_x[1],self.segments_y[1])
         self.score=player.score
         self.isAlive=True
         self.uid=player.uid
 
 class Segment:
 
-    def __init__(self,pos):
+    def __init__(self,pos,game):
         self.pos=pos #Position vector of top left corner
         self.width=1
+        self.game=game
         self.height=40
-        self.rect=pygame.Rect(int(pos.x),int(pos.y),self.width,self.height) #Pygame rect object
+        self.rect=pygame.Rect(float(pos.x),float(pos.y),self.width,self.height) #Pygame rect object
 
     #Draw the segment
     def draw(self,surface,trailing):
-        # pygame.draw.rect(surface,(0,0,255),self.rect)
-        self.rect = pygame.draw.circle(surface,(0,0,255) if trailing else (0,255,255) , self.pos, 15)
+        self.rect = pygame.draw.circle(surface,(0,0,255) if trailing else (0,255,255) , self.game.camera.transformed_coords(self.pos), 15)
 
 class Camera:
     def __init__(self,game):
@@ -87,14 +92,15 @@ class Camera:
         return coords - (self.pos - (self.game.dimensions)/2)
 
 class Player:
+
     def __init__(self,game):
         self.score=0
         self.uid=0
         self.game=game
-        self.speed=14 # Speed in terms of update rate. Smaller => Faster
+        self.speed=20 # Speed in terms of update rate. Smaller => Faster
         self.segments=[]
         for i in range(0,121):
-            self.segments.append(Segment(game.dimensions/2-i*v2(1,0)))
+            self.segments.append(Segment(game.dimensions/2-i*v2(1,0),self.game))
     
     def draw(self):
         for index in range(len(self.segments)-1,-1,-1):
@@ -108,23 +114,42 @@ class Player:
             direction=v2(0,0)
 
         self.segments=self.segments[:-1] #Remove last segment
-        self.segments.insert(0,Segment(self.segments[0].pos+direction*1)) #Insert new segment at the front
+        self.segments.insert(0,Segment(self.segments[0].pos+direction*1,self.game)) #Insert new segment at the front
         self.game.socket.send(PlayerState(self))
+
+class Opponent:
+    def __init__(self,playerState,game):
+        self.score=playerState.score
+        self.uid=playerState.uid
+        self.game=game
+        self.speed=20
+        self.segments=[]
+        for (x,y) in zip(playerState.segments_x,playerState.segments_y):
+            self.segments.insert(0,Segment(v2(x,y),self.game))
+    
+    def draw(self):
+        for index in range(len(self.segments)-1,-1,-1):
+            self.segments[index].draw(self.game.window,index)
+        
 
 class Orb:
     def __init__(self,pos,game):
         self.color=(255,0,0)
         self.game=game
-        pos=game.camera.transformed_coords(pos)
-        self.rect=pygame.Rect(int(pos.x),int(pos.y),game.orb_size,game.orb_size)
+        # self.pos=game.camera.transformed_coords(pos)
+        self.pos=pos
+        self.orb_size=game.orb_size
+        self.rect=pygame.Rect(float(pos.x),float(pos.y),game.orb_size,game.orb_size)
 
     def draw(self):
-        pygame.draw.rect(self.game.window,self.color,self.rect)
+        pos=self.game.camera.transformed_coords(self.pos)
+        tempRect=pygame.Rect(float(pos.x),float(pos.y),self.orb_size,self.orb_size)
+        pygame.draw.rect(self.game.window,self.color,tempRect)
 
     def update(self):
         if pygame.Rect.colliderect(self.rect,self.game.player.segments[0].rect):
             return True
-        self.rect.topleft=self.game.camera.transformed_coords(self.rect.topleft)
+        # self.rect.topleft=self.game.camera.transformed_coords(self.rect.topleft)
 
 class Game:
     def __init__(self): 
@@ -143,6 +168,8 @@ class Game:
         self.PLAYER_UPDATE=pygame.USEREVENT
         pygame.time.set_timer(self.PLAYER_UPDATE,self.player.speed)
 
+        self.opponents=[]
+
         self.socket=Socket('localhost',8000)
         self.player.uid=self.socket.connect()
     
@@ -151,7 +178,7 @@ class Game:
         self.orbs=[]
         self.init_orbs(self.number_of_orbs)
 
-        print(self.player.uid)
+        # print(self.player.uid)
         self.mainloop()
 
     def init_orbs(self,number_of_orbs):
@@ -177,13 +204,17 @@ class Game:
         for orb in self.orbs:
             orb.draw()
         self.player.draw()
+        for opp in self.opponents:
+            opp.draw()
 
     def update(self):
         self.player.update()
         self.camera.update()
 
-        for seg in self.player.segments:
-            seg.pos=self.camera.transformed_coords(seg.pos)
+        # print(self.player.segments[0].pos,self.player.segments[1].pos)
+        # Move player segments back to center
+        # for seg in self.player.segments:
+        #     seg.pos=self.camera.transformed_coords(seg.pos)
 
         for orb in self.orbs:
             if orb.update():
@@ -192,17 +223,27 @@ class Game:
                 self.player.score+=1
                 print("Score:",self.player.score)
 
-    def genenrateOpponents():
-        pass
+    def generateOpponents(self):
+        self.socket.send("OPPONENTS")
+        opponentStates=self.socket.receive()
+        if opponentStates!=None:
+            self.opponents=[]
+            for state in opponentStates:
+                # print(state.
+                # segments_x,state.segments_y)
+                self.opponents.append(Opponent(state,self))
     
     def mainloop(self):
         while True:
             for event in pygame.event.get():
                 if event.type==pygame.QUIT:
+                    # self.socket.close()
+                    self.socket.send("END")
                     pygame.quit()
                     sys.exit()
                 elif event.type==self.PLAYER_UPDATE:
                     self.update()
+            self.generateOpponents()
             self.clock.tick(60)
             self.window.fill(self.bgcolor)
             self.render()
