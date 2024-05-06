@@ -151,7 +151,26 @@ class Opponent:
     def draw(self):
         for index in range(len(self.segments)-1,-1,-1):
             self.segments[index].draw(self.game.window,index)
-        
+
+class Score():
+    def __init__(self,game):
+        self.game=game
+        self.font=pygame.font.Font(None,36)
+        self.color=(0,0,0)
+        self.playerColor=(255,0,0)
+        self.pos=(1000,600)
+        self.text=""
+    
+    def update(self):
+        self.text=[self.font.render(f"Score:",True,self.color),self.font.render(f"{self.game.player.uid}:{self.game.player.score}",True,self.playerColor)]
+        for opp in self.game.opponents:
+            self.text.append(self.font.render(f"{opp.uid}:{opp.score}",True,self.color))
+    
+    def draw(self):
+        # self.renderedText=self.font.render(self.text,True,self.color)
+        surface=self.game.window
+        for line in range(len(self.text)):
+            surface.blit(self.text[line],self.pos+v2(0,36*line))
 
 class Orb:
     def __init__(self,pos,game):
@@ -200,6 +219,8 @@ class Game:
         self.orbs=[]
         self.eaten=[]
 
+        self.score=Score(self)
+
         self.end=False
 
         self.mainloop()
@@ -210,31 +231,27 @@ class Game:
         self.player.draw()
         for opp in self.opponents:
             opp.draw()
+        self.score.draw()
 
     def update(self):
         if not self.end:
             self.player.update()
             self.camera.update()
-        # self.generateOpponents()
-        # self.generateOrbs()
+        
         self.generateOppOrbs()
-
-        # print(self.player.segments[0].pos,self.player.segments[1].pos)
-        # Move player segments back to center
-        # for seg in self.player.segments:
-        #     seg.pos=self.camera.transformed_coords(seg.pos)
 
         for orb in range(0,len(self.orbs)):
             if self.orbs[orb].update():
                 print("Ate")
                 self.player.score+=1
                 self.player.extend(30)
-                # self.socket.send(PlayerState(self.player))
                 self.eaten.append(tuple(self.orbs[orb].pos))
                 self.socket.send(tuple(self.orbs[orb].pos))
                 self.orbs.pop(orb)
                 print("Score:",self.player.score)
                 break
+        
+        self.score.update()
 
     def generateOppOrbs(self):
         self.socket.send("OPPONENTS")

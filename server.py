@@ -72,6 +72,7 @@ class GameServer:
         self.players={}
         self.opponents={}
         self.orbs=[]
+        self.uid_counter=0
 
         self.init_orbs(100)
         print("Listening on "+self.sock.ip+":"+str(self.sock.port))
@@ -82,35 +83,20 @@ class GameServer:
         for i in range(0,number_of_orbs):
             pos=(random.randint(-2400,2400),random.randint(-1600,1600))
             self.orbs.append(pos)
-
-            #Check for overlapping orbs
-            # for index1,orb1 in enumerate(self.orbs):
-            #     for index2,orb2 in enumerate(self.orbs):
-            #         if pygame.Rect.colliderect(orb1.rect,orb2.rect) and index1!=index2:
-            #             self.orbs.pop(index1)
-            #             self.init_orbs(1)
-
-            # #Check for overlapping orbs with player
-            # for orb in self.orbs:
-            #     for seg in self.player.segments:
-            #         if pygame.Rect.colliderect(orb.rect,seg.rect):
-            #             self.orbs.remove(orb)
-            #             self.init_orbs(1)
         
     def mainLoop(self):
         while True:
             newClient=self.sock.acceptNewClient()
             if newClient!=None:
                 self.opponents[newClient]=list(self.players.values()).copy()
-                self.players[newClient]=PlayerState(len(self.players))
+                self.players[newClient]=PlayerState(self.uid_counter)
+                self.uid_counter+=1
                 for client in self.players:
                     if client!=newClient:
                         self.opponents[client].append(self.players[newClient])
                 self.sock.send(newClient,self.players[newClient])
             
             for client in self.players:
-                # print("Sending to "+str(self.players[client].uid))
-                # req=0
                 flag=False
                 data=self.sock.receiveData(client)
                 while data !=None:
@@ -139,12 +125,5 @@ class GameServer:
 
                 if(flag):
                     break
-                    # print(str(self.players[client].uid),str(req))
-                # opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client]
-                # if opponents!=[]:
-                #     print(opponents[0].uid)
-                # self.sock.send(client,self.opponents[client])
-                # self.sock.send(client,self.orbs)
-                        #    self.sock.send(client,opponents)
                         
 GameServer()
