@@ -1,7 +1,7 @@
 import pygame
 from pygame import Vector2 as v2
 import sys
-import random
+import threading
 import socket
 import pickle
 
@@ -14,14 +14,18 @@ class Socket:
         serialized_data=pickle.dumps(data)
         data_length=len(serialized_data)    
         try:
-            self.sock.send(f"{data_length:<10}".encode())
-            sent=0
-            while sent<data_length:
-                sent=self.sock.send(pickle.dumps(data))
+            self.sock.sendall(f"{data_length:<10}".encode())
+            self.sock.sendall(pickle.dumps(data))
         except:
             # raise RuntimeError("Failed to send data")
             pass
         
+    def reconnect(self):
+        self.sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+        self.sock.connect(self.server)
+        data=self.receive()
+        return data.uid
+
     def receive(self):
         try:
         # First, read the header (10 bytes)
@@ -46,8 +50,7 @@ class Socket:
     def connect(self):
         self.sock.connect(self.server)
         data=self.receive()
-        self.sock.setblocking(False)
-        print(data.uid)
+        # self.sock.setblocking(False)
         return data.uid
     
     def close(self):
@@ -62,7 +65,6 @@ class PlayerState:
         for seg in player.segments:
             self.segments_x.insert(0,seg.pos.x)
             self.segments_y.insert(0,seg.pos.y)
-        # print(self.segments_x[0],self.segments_y[0],self.segments_x[1],self.segments_y[1])
         self.score=player.score
         self.isAlive=player.isAlive
         self.uid=player.uid
@@ -77,9 +79,6 @@ class Segment:
     #Draw the segment
     def draw(self,surface,trailing):
         self.rect = pygame.draw.circle(surface,(0,0,255) if trailing else (0,255,255) , self.game.camera.transformed_coords(self.pos), 15)
-
-    # def update(self):
-    #     self.rect.topleft=self.pos
 
 class Camera:
     def __init__(self,game):
@@ -118,8 +117,6 @@ class Player:
     def checkCollsison(self):
         for opp in self.game.opponents:
             for seg in opp.segments:
-                # seg.rect.topleft=self.game.camera.transformed_coords(seg.pos)
-                # print(seg.rect,self.segments[0].rect)
                 if (v2(seg.pos)-v2(self.segments[0].pos)).length()<30:
                     return True
 
@@ -130,14 +127,12 @@ class Player:
         if mouse_pos!=v2(0,0):
                 self.direction=self.direction.rotate(motion_angle/100 if abs(motion_angle)<180 else -motion_angle/100).normalize()
         else:
-            direction=v2(0,0)
+            self.direction=v2(0,0)
 
         self.segments=self.segments[:-1] #Remove last segment
         self.segments.insert(0,Segment(self.segments[0].pos+self.direction*1,self.game)) #Insert new segment at the front
         if self.checkCollsison():
-            # print("Collision")
             self.isAlive=False
-            # self.game.socket.send(PlayerState(self))
             self.game.quit()
 
         self.game.socket.send(PlayerState(self))
@@ -226,6 +221,10 @@ class Game:
 
         self.score=Score(self)
 
+        self.stateUpdateThread=threading.Thread(target=self.generateOppOrbs,args=())
+        self.stateUpdateThread.daemon=True
+        self.stateUpdateThread.start()
+
         self.end=False
 
         self.mainloop()
@@ -243,11 +242,15 @@ class Game:
             self.player.update()
             self.camera.update()
         
-        self.generateOppOrbs()
+        # self.generateOppOrbs()
+
+        # if len(self.orbs)==0:
+        #     self.socket.send("END")
+            # self.player.uid=self.socket.reconnect()
+
 
         for orb in range(0,len(self.orbs)):
             if self.orbs[orb].update():
-                print("Ate")
                 self.player.score+=1
                 self.player.extend(30)
                 self.eaten.append(tuple(self.orbs[orb].pos))
@@ -259,38 +262,30 @@ class Game:
         self.score.update()
 
     def generateOppOrbs(self):
-        self.socket.send("OPPONENTS")
-        self.socket.send("ORBS")
-        tmp=self.socket.receive()
-        info=[]
-        while tmp!=None:
-            info.append(tmp)
-            tmp=self.socket.receive()
-        for data in info:
-            if data==None or data==[]:
-                continue
-            if isinstance(data[0],PlayerState):
-                # print(data)
-                # oldopponents=self.opponents.copy()
-                self.opponents=[]
-                for state in data:
-                    if state.uid!=self.player.uid:
-                        self.opponents.append(Opponent(state,self))
-            elif isinstance(data[0],tuple):
-                tmp=[]
-                allNew=True
-                for pos in data:
-                    if pos not in self.eaten:
-                        tmp.append(Orb(v2(pos),self))
-                    else:
-                        allNew=False
-                if tmp!=[]:        
-                    self.orbs=tmp
-                if allNew: 
-                    self.eaten=[]
-            else:
-                print(data)
-        
+        while True:
+            data=self.socket.receive()
+            # print(data,end='\t')
+            if data!=[] and  data!=None:
+                if isinstance(data[0],PlayerState):
+                    self.opponents=[]
+                    for state in data:
+                        if state.uid!=self.player.uid:
+                            self.opponents.append(Opponent(state,self))
+                elif isinstance(data[0],tuple):
+                    tmp=[]
+                    allNew=True
+                    for pos in data:
+                        if pos not in self.eaten:
+                            tmp.append(Orb(v2(pos),self))
+                        else:
+                            allNew=False
+                    if tmp!=[]:        
+                        self.orbs=tmp
+                    if allNew: 
+                        self.eaten=[]
+            # data=self.socket.receive()
+            # if data!=[] and  data!=None:
+                
         # print(orbsPosition)
         
     def quit(self):
