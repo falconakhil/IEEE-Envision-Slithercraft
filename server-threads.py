@@ -18,7 +18,6 @@ class Socket:
         self.port = port
 
         self.socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # self.socket.setblocking(False)
         self.socket.bind((self.ip,self.port))
         self.socket.listen(10)        
     
@@ -26,7 +25,6 @@ class Socket:
     def acceptNewClient(self):
         try:
             client,addr=self.socket.accept()
-            # client.setblocking(False)
             return client
         except:
             return None        
@@ -59,14 +57,12 @@ class Socket:
             client.sendall(serialized_data)
 
         except:
-            # raise RuntimeError("Failed to send data")
             pass
 
 class GameServer:
     def __init__(self):
         self.sock=Socket('localhost',8000)
         self.players={}
-        # self.opponents={}
         self.orbs=[]
         self.uid_counter=0
 
@@ -99,13 +95,10 @@ class GameServer:
 
     def broadcasterThread(self):
         while True:
-        # opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client and self.players[oppclient].isAlive]
-            # print("Broadcasting")
             self.broadcast(list(self.players.values()))
             self.broadcast(self.orbs)
             
     def handlerThread(self,client):
-        # print("Running")
         while True:
             data=self.sock.receiveData(client)
             if isinstance(data,PlayerState):
@@ -115,11 +108,6 @@ class GameServer:
                     self.players.pop(client)
                     client.close()
                     break
-                # elif data=="OPPONENTS":
-                #     opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client and self.players[oppclient].isAlive]
-                #     self.sock.send(client,opponents)
-                # elif data=="ORBS":
-                #     self.sock.send(client,self.orbs)
             elif isinstance(data,tuple):
                 for i in range(0,len(self.orbs)):
                     if self.orbs[i][0]==data[0] and self.orbs[i][1]==data[1]:
@@ -128,15 +116,12 @@ class GameServer:
             
         
     def mainLoop(self):
-            # self.sock.socket.accept()
-            # print('test')
             accepterThread=threading.Thread(target=self.acceptNewPlayer,args=())
             accepterThread.daemon=True
             accepterThread.start()
             broadcasterThread=threading.Thread(target=self.broadcasterThread,args=())
             broadcasterThread.daemon=True
             broadcasterThread.start()
-            # print(self.uid_counter)
             while True:
                 pass
                  

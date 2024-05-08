@@ -17,7 +17,6 @@ class Socket:
             self.sock.sendall(f"{data_length:<10}".encode())
             self.sock.sendall(pickle.dumps(data))
         except:
-            # raise RuntimeError("Failed to send data")
             pass
         
     def reconnect(self):
@@ -50,7 +49,6 @@ class Socket:
     def connect(self):
         self.sock.connect(self.server)
         data=self.receive()
-        # self.sock.setblocking(False)
         return data.uid
     
     def close(self):
@@ -143,7 +141,6 @@ class Opponent:
         self.score=playerState.score
         self.uid=playerState.uid
         self.game=game
-        # self.speed=20
         self.segments=[]
         for (x,y) in zip(playerState.segments_x,playerState.segments_y):
             self.segments.insert(0,Segment(v2(x,y),self.game))
@@ -167,7 +164,6 @@ class Score():
             self.text.append(self.font.render(f"{opp.uid}:{opp.score}",True,self.color))
     
     def draw(self):
-        # self.renderedText=self.font.render(self.text,True,self.color)
         surface=self.game.window
         for line in range(len(self.text)):
             surface.blit(self.text[line],self.pos+v2(0,36*line))
@@ -176,7 +172,6 @@ class Orb:
     def __init__(self,pos,game):
         self.color=(255,0,0)
         self.game=game
-        # self.pos=game.camera.transformed_coords(pos)
         self.pos=pos
         self.orb_size=game.orb_size
         self.rect=pygame.Rect(float(pos.x),float(pos.y),game.orb_size,game.orb_size)
@@ -189,7 +184,6 @@ class Orb:
     def update(self):
         if pygame.Rect.colliderect(self.rect,self.game.player.segments[0].rect):
             return True
-        # self.rect.topleft=self.game.camera.transformed_coords(self.rect.topleft)
 
 class Game:
     def __init__(self): 
@@ -241,13 +235,6 @@ class Game:
         if not self.end:
             self.player.update()
             self.camera.update()
-        
-        # self.generateOppOrbs()
-
-        # if len(self.orbs)==0:
-        #     self.socket.send("END")
-            # self.player.uid=self.socket.reconnect()
-
 
         for orb in range(0,len(self.orbs)):
             if self.orbs[orb].update():
@@ -264,7 +251,6 @@ class Game:
     def generateOppOrbs(self):
         while True:
             data=self.socket.receive()
-            # print(data,end='\t')
             if data!=[] and  data!=None:
                 if isinstance(data[0],PlayerState):
                     self.opponents=[]
@@ -283,13 +269,8 @@ class Game:
                         self.orbs=tmp
                     if allNew: 
                         self.eaten=[]
-            # data=self.socket.receive()
-            # if data!=[] and  data!=None:
-                
-        # print(orbsPosition)
         
     def quit(self):
-        # self.socket.send("END")
         self.end=True
       
 
@@ -304,8 +285,6 @@ class Game:
                     sys.exit()
                 elif event.type==self.PLAYER_UPDATE:
                     self.update()
-            # self.generateOpponents()
-            # self.generateOppOrbs()
             self.window.fill(self.bgcolor)
             self.render()
             pygame.display.update()

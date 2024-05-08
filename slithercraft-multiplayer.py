@@ -78,9 +78,6 @@ class Segment:
     def draw(self,surface,trailing):
         self.rect = pygame.draw.circle(surface,(0,0,255) if trailing else (0,255,255) , self.game.camera.transformed_coords(self.pos), 15)
 
-    # def update(self):
-    #     self.rect.topleft=self.pos
-
 class Camera:
     def __init__(self,game):
         self.game=game #Reference to the game object from where it is called
@@ -118,8 +115,6 @@ class Player:
     def checkCollsison(self):
         for opp in self.game.opponents:
             for seg in opp.segments:
-                # seg.rect.topleft=self.game.camera.transformed_coords(seg.pos)
-                # print(seg.rect,self.segments[0].rect)
                 if (v2(seg.pos)-v2(self.segments[0].pos)).length()<30:
                     return True
 
@@ -135,9 +130,7 @@ class Player:
         self.segments=self.segments[:-1] #Remove last segment
         self.segments.insert(0,Segment(self.segments[0].pos+self.direction*1,self.game)) #Insert new segment at the front
         if self.checkCollsison():
-            # print("Collision")
             self.isAlive=False
-            # self.game.socket.send(PlayerState(self))
             self.game.quit()
 
         self.game.socket.send(PlayerState(self))
@@ -172,7 +165,6 @@ class Score():
             self.text.append(self.font.render(f"{opp.uid}:{opp.score}",True,self.color))
     
     def draw(self):
-        # self.renderedText=self.font.render(self.text,True,self.color)
         surface=self.game.window
         for line in range(len(self.text)):
             surface.blit(self.text[line],self.pos+v2(0,36*line))
@@ -181,7 +173,6 @@ class Orb:
     def __init__(self,pos,game):
         self.color=(255,0,0)
         self.game=game
-        # self.pos=game.camera.transformed_coords(pos)
         self.pos=pos
         self.orb_size=game.orb_size
         self.rect=pygame.Rect(float(pos.x),float(pos.y),game.orb_size,game.orb_size)
@@ -194,7 +185,6 @@ class Orb:
     def update(self):
         if pygame.Rect.colliderect(self.rect,self.game.player.segments[0].rect):
             return True
-        # self.rect.topleft=self.game.camera.transformed_coords(self.rect.topleft)
 
 class Game:
     def __init__(self): 
@@ -259,8 +249,7 @@ class Game:
         self.score.update()
 
     def generateOppOrbs(self):
-        self.socket.send("OPPONENTS")
-        self.socket.send("ORBS")
+
         tmp=self.socket.receive()
         info=[]
         while tmp!=None:
@@ -270,8 +259,6 @@ class Game:
             if data==None or data==[]:
                 continue
             if isinstance(data[0],PlayerState):
-                # print(data)
-                # oldopponents=self.opponents.copy()
                 self.opponents=[]
                 for state in data:
                     if state.uid!=self.player.uid:
@@ -291,7 +278,6 @@ class Game:
             else:
                 print(data)
         
-        # print(orbsPosition)
         
     def quit(self):
         # self.socket.send("END")
@@ -309,8 +295,6 @@ class Game:
                     sys.exit()
                 elif event.type==self.PLAYER_UPDATE:
                     self.update()
-            # self.generateOpponents()
-            # self.generateOppOrbs()
             self.window.fill(self.bgcolor)
             self.render()
             pygame.display.update()

@@ -1,9 +1,7 @@
 import pickle
 import socket
 import random
-# from pygame import Rect
-# import sys
-# import threadijng
+
 
 class PlayerState:
     def __init__(self,uid):
@@ -63,14 +61,12 @@ class Socket:
                 sent=client.send(serialized_data)
 
         except:
-            # raise RuntimeError("Failed to send data")
             pass
 
 class GameServer:
     def __init__(self):
         self.sock=Socket('localhost',8000)
         self.players={}
-        # self.opponents={}
         self.orbs=[]
         self.uid_counter=0
 
@@ -100,17 +96,10 @@ class GameServer:
             players=list(self.players.values())
             self.broadcast(players)
             self.broadcast(self.orbs)
-            # self.broadcast("Hi")
-            req=0
             for client in self.players:
                 flag=False
                 data=self.sock.receiveData(client)
                 while data !=None:
-                    # opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client and self.players[oppclient].isAlive]
-                    # self.sock.send(client,opponents)
-                    # self.sock.send(client,self.orbs)
-                    # print(self.players.values())
-                    req+=1
                     if isinstance(data,PlayerState):
                         self.players[client]=data
                     elif isinstance(data,str):
@@ -129,9 +118,5 @@ class GameServer:
 
                 if(flag):
                     break
-                # opponents=[self.players[oppclient] for oppclient in self.players if oppclient!=client]
-                # self.sock.send(client,opponents)
-            if(req!=0):
-                print(req)
                         
 GameServer()
