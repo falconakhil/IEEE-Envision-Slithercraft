@@ -135,12 +135,24 @@ class Player:
 
         self.game.socket.send(PlayerState(self))
 
+class GameOver():
+    def __init__(self,game):
+        self.font=pygame.font.Font(None,100)
+        self.pos=game.dimensions/2.0
+        self.game=game
+        self.color=(255,0,0)
+        self.text_surface=self.font.render("Game Over !",True,self.color)
+        self.text_rect=self.text_surface.get_rect(center=self.pos)
+        # center_pos = (screen_rect.centerx - text_rect.width // 2, screen_rect.centery - text_rect.height // 2 + 36 * line)
+    def draw(self):
+        self.game.window.blit(self.text_surface,self.text_rect)
        
 class Opponent:
     def __init__(self,playerState,game):
         self.score=playerState.score
         self.uid=playerState.uid
         self.game=game
+        self.isAlive=playerState.isAlive
         self.segments=[]
         for (x,y) in zip(playerState.segments_x,playerState.segments_y):
             self.segments.insert(0,Segment(v2(x,y),self.game))
@@ -161,7 +173,7 @@ class Score():
     def update(self):
         self.text=[self.font.render(f"Score:",True,self.color),self.font.render(f"{self.game.player.uid}:{self.game.player.score}",True,self.playerColor)]
         for opp in self.game.opponents:
-            self.text.append(self.font.render(f"{opp.uid}:{opp.score}",True,self.color))
+            self.text.append(self.font.render(f"{opp.uid}{'' if opp.isAlive else '*'}:{opp.score}",True,self.color))
     
     def draw(self):
         surface=self.game.window
@@ -230,6 +242,8 @@ class Game:
         for opp in self.opponents:
             opp.draw()
         self.score.draw()
+        if self.end:
+            self.gameOverText.draw()
 
     def update(self):
         if not self.end:
@@ -271,6 +285,7 @@ class Game:
                         self.eaten=[]
         
     def quit(self):
+        self.gameOverText=GameOver(self)
         self.end=True
       
 
